@@ -5,24 +5,30 @@ import time
 import class_thres
 from PIL import Image
 from datetime import date
-import openpyxl
+import datetime
+import pymongo as db
 
-pytesseract.pytesseract.tesseract_cmd=(r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe")
+client = db.MongoClient("mongodb://localhost:27017/")
+
+pytesseract.pytesseract.tesseract_cmd=(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
 yes = '0'
 
 sence = input('Type 0 to enter: ')
 
+
 if sence == yes :
     
     date=date.today().strftime('%d-%B-%Y')
-    x= time.localtime()
-    exit_time = time.strftime("%H:%M:%S", x)
+    extime= datetime.datetime.now()
+    exit_time = extime.strftime('%H:%M')
     
     #will create the existing text file with same date
     new_day = date+'.txt'
     
-    num_plate = cv.VideoCapture(0)
-    check,plate = num_plate.read()
+    #num_plate = cv.VideoCapture(0)
+    #check,plate = num_plate.read()
+    img = cv.imread(r'Smart-Parking-System\Number_plate2.jpg',1) #reading the image
+    plate = cv.resize(img, (int(img.shape[1]/3),int(img.shape[0]/3)))
     
     gray = cv.cvtColor(plate, cv.COLOR_BGR2GRAY)
     
@@ -38,51 +44,26 @@ if sence == yes :
     
     time.sleep(3)
     
-    #data = number + '   ' + entry_time
-    
-    #A text file to keep permanent record of the entries for future record
-    exit_t = open(new_day,"r+")
-    lines = exit_t.readlines()
-    for n in lines:
-        if number in lines:
-            offset=exit_t.tell()
-            exit_t.seek(offset)
-            exit_t.write(exit_time)
-            break
-        else:
-            cv.waitKey(0)
-            num_plate.release()
-            cv.destroyAllWindows()
-            
-    exit_t.close()
-    
+    cardb = client["Car-Parking"]
+    carcol = cardb["Cars"]
+    reffdata = {"_id":number}
+    cardata = {"$set":{"Exit_time":exit_time}}
+    carcol.update_one(reffdata,cardata)
 
-    wb= openpyxl.load_workbook(r'C:/Users/harsh/Documents/MP SEM-2/Temp record.xlsx')
-    
-    sheet1 = wb.active
-    
-    max_col = sheet1.max_row
-    
-    #calculation of time during exit
-    for i in range(1, max_col + 1): 
-        s= sheet1.cell(row=i,column=1)
-        t= sheet1.cell(row=i,column=3)
-        d= sheet1.cell(row=i,column=4)
-        if s.value==number:
-            s.value = '0'
-            t.value = exit_time
-            d.value = '=TEXT(C'+ i+'-B'+i+', "mm")'
-            duration= d.value
-            break
-    
-    wb.save(r'C:/Users/harsh/Documents/MP- Smart Parking/Temp record.xlsx')
-    
-print('Total duration is ',duration)
+    entime = carcol.find_one({"_id":number},{"_id":0,"Entry Time":1})
+    entry = entime["Entry Time"]
+    #print(entry)
+    #print(exit_time)
+    entry_time = datetime.datetime.strptime(entry,'%H:%M')
+    duration = datetime.datetime.strptime(exit_time,'%H:%M')-entry_time
+    #duration = datetime.datetime.strftime(duration,"%H:%M")
+    cardata2 = {"$set":{"Duration":str(duration)}}
+    carcol.update_one(reffdata,cardata2)
 
-print('/nTotal cost is ₹', duration*2)    
-    
+    print(duration)
+
+
 cv.waitKey(0)
 
-num_plate.release()
 
-cv.destroyAllWindows()
+cv.destroyAllWindows()    
