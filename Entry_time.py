@@ -5,10 +5,14 @@ import time
 import class_thres
 from PIL import Image
 from datetime import date
-import openpyxl
+import datetime
+import pymongo as db
+
+#connecting to mongoDB
+client = db.MongoClient("mongodb://localhost:27017/")
 
 #calling of needed software
-pytesseract.pytesseract.tesseract_cmd=(r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe")
+pytesseract.pytesseract.tesseract_cmd=(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
 yes = '0'
 
 sence = input('Type 0 to enter: ')
@@ -17,15 +21,16 @@ if sence == yes :
     
    
     date=date.today().strftime('%d-%B-%Y')
-    x= time.localtime()
-    entry_time = time.strftime("%H:%M:%S", x)
+    x= datetime.datetime.now()
+    entry_time = x.strftime("%H:%M")
     
     #will create new text file for every new day with their title as date
     new_day = date+'.txt'
     
     #Capturing the image of the plate
-    num_plate = cv.VideoCapture(0) 
-    check,plate = num_plate.read() #reading the image
+    #num_plate = cv.VideoCapture(0) 
+    img = cv.imread(r'Smart-Parking-System\Number_plate2.jpg',1) #reading the image
+    plate = cv.resize(img, (int(img.shape[1]/3),int(img.shape[0]/3)))
     
     gray = cv.cvtColor(plate, cv.COLOR_BGR2GRAY) #changing image into grayscale
     
@@ -37,7 +42,7 @@ if sence == yes :
     cv.imwrite(temp,gray)
     
     #Extracting the text from the image in string form
-    number = pytesseract.image_to_string(Image.open(temp))
+    number = pytesseract.image_to_string(gray)
     
     #deleting the temporary file
     os.remove(temp)
@@ -52,32 +57,12 @@ if sence == yes :
     entry.write(data)
     entry.close()
     
-
-    wb= openpyxl.load_workbook(r'C:/Users/harsh/Documents/MP- Smart Parking/Temp record.xlsx')
-    
-    sheet1 = wb.active
-    
-    max_col = sheet1.max_row
-    x=0
-    #entry of Number paper and entry time in exel sheet
-    for i in range(1, max_col + 1): 
-        s= sheet1.cell(row=i,column=1)
-        t= sheet1.cell(row=i,column=2)
-        if s.value==x:
-            s.value = number
-            t.value = entry_time
-            break
-    
-    
-    wb.save(r'C:/Users/harsh/Documents/MP- Smart Parking/Temp record.xlsx')
-    
+    #Using MongoDB to create a database
+    cardb = client["Car-Parking"]
+    carcol = cardb["Cars"]
+    cardata = {"_id":number,"Entry Time":entry_time,"Exit_time":"xxxx","Duration":"xxxx"}
+    carcol.insert_one(cardata)
     
 cv.waitKey(0)
 
-num_plate.release()
-
 cv.destroyAllWindows()
-
-
-    
-
