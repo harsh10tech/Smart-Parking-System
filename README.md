@@ -9,5 +9,5 @@
 - For better results, it is suggested to get a **good quality camera** with a few changes in the code, if it is desired to be implemented in a project.
 
 ---
-# Note
+## Note
 - Can also be used in a **Raspberry Pi** project.
